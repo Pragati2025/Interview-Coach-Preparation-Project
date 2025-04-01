@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom"; // ✅ Import Link
 import "../css/navbar.css";
 import logo from "../images/logo.png";
 
@@ -7,10 +8,10 @@ const Navbar = () => {
     <nav className="navbar navbar-expand-lg bg-white fixed-top shadow-sm">
       <div className="container">
         {/* Logo */}
-        <a className="navbar-brand" href="#home">
+        <Link className="navbar-brand" to="/">
           <img src={logo} alt="Logo" className="logo" />
           Interview Prep
-        </a>
+        </Link>
 
         {/* Toggle Button for Mobile */}
         <button
@@ -29,25 +30,25 @@ const Navbar = () => {
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav ms-auto">
             <li className="nav-item">
-              <a className="nav-link" href="#home">Home</a>
+              <Link className="nav-link" to="/">Home</Link>
             </li>
             <li className="nav-item">
-              <a className="nav-link" href="#about">About</a>
+              <Link className="nav-link" to="/about">About</Link>
             </li>
             <li className="nav-item">
-              <a className="nav-link" href="#mock-interview">Mock Interviews</a>
+              <Link className="nav-link" to="/mock-interview">Mock Interviews</Link>
             </li>
             <li className="nav-item">
-              <a className="nav-link" href="#ai-tools">AI Tools</a>
+              <Link className="nav-link" to="/ai-tools">AI Tools</Link>
             </li>
             <li className="nav-item">
-              <a className="nav-link" href="#testimonial">Testimonial</a>
+              <Link className="nav-link" to="/testimonial">Testimonial</Link>
             </li>
             <li className="nav-item">
-              <a className="nav-link" href="#contact">Contact Us</a>
+              <Link className="nav-link" to="/contact">Contact Us</Link>
             </li>
             <li className="nav-item">
-              <a className="nav-link" href="#login"><strong>Login</strong></a>
+              <Link className="nav-link" to="/login"><strong>Login</strong></Link>
             </li>
           </ul>
         </div>
