@@ -1,14 +1,16 @@
-const express = require("express");
-const multer = require("multer");
-const { analyzeResume } = require("../controllers/geminiController"); // ✅ Correct import
+import express from "express";
+import multer from "multer";
+import {
+  analyzeResumeOrJD,
+  analyzeResume,
+  submitQA,
+} from "../controllers/geminiController.js";
 
 const router = express.Router();
+ const upload = multer({ storage: multer.memoryStorage() });
 
-// ✅ Multer for file upload (store in memory)
-const upload = multer({ storage: multer.memoryStorage() });
+router.post("/analyze", upload.single("resume"), analyzeResumeOrJD);
+router.post("/analyze-resume", upload.single("file"), analyzeResume);
+router.post("/submit", submitQA);
 
-// ✅ Route for analyzing job description or resume
-router.post("/mock-interview/analyze", upload.single("resume"), analyzeResume);
-
-// ✅ Export router
-module.exports = router;
+export default router;

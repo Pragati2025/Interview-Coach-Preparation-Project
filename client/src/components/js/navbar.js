@@ -5,6 +5,7 @@ import logo from "../images/logo.png";
 
 const Navbar = () => {
   return (
+    
     <nav className="navbar navbar-expand-lg bg-white fixed-top shadow-sm">
       <div className="container">
         {/* Logo */}

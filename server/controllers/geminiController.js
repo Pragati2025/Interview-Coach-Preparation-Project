@@ -1,97 +1,126 @@
-require("dotenv").config();
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+import dotenv from "dotenv";
+dotenv.config();
 
+console.log("🔑 Gemini API Key from env:", process.env.GEMINI_API_KEY);
+
+
+
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import pkg from "pdf-parse";
+const pdfParse = pkg.default || pkg;
+
+import InterviewQA from "../models/InterviewQA.js";
+import User from "../models/User.js";
+
+// -------------------- INIT GEMINI --------------------
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ✅ Function to analyze job description or resume
-const analyzeResume = async (req, res) => {
-    try {
-        const { jobDescription, roleLevel } = req.body;
-        const resumeFile = req.file; // Handle uploaded resume
+// -------------------- ANALYZE RESUME OR JD + GENERATE QUESTIONS AND ANSWERS --------------------
+export const analyzeResumeOrJD = async (req, res) => {
+  try {
+    const { jobDescription, roleLevel = "N/A", userEmail } = req.body;
+    const resumeFile = req.file;
 
-        console.log("🔹 Received Inputs:");
-        console.log("👉 Job Description:", jobDescription);
-        console.log("👉 Role Level:", roleLevel);
-        console.log("👉 Resume File:", resumeFile ? "Uploaded" : "Not Provided");
-
-        // Extract sections from resume (if uploaded)
-        let resumeText = "";
-        if (resumeFile) {
-            resumeText = resumeFile.buffer.toString("utf-8");
-        }
-
-        // Extract details from resume text
-        const careerObjective = extractCareerObjective(resumeText);
-        const projects = extractProjects(resumeText);
-        const skills = extractSkills(resumeText);
-        const education = extractEducation(resumeText);
-        const internship = extractInternship(resumeText);
-
-        // Construct the prompt for Gemini AI
-        let prompt = "Generate structured interview questions based on the following details:\n";
-        if (careerObjective) prompt += `Career Objective: ${careerObjective}\n`;
-        if (skills) prompt += `Skills: ${skills}\n`;
-        if (projects) prompt += `Projects: ${projects}\n`;
-        if (education) prompt += `Education: ${education}\n`;
-        if (internship) prompt += `Internship Experience: ${internship}\n`;
-        if (jobDescription) prompt += `Job Description: ${jobDescription}\n`;
-        if (roleLevel) prompt += `Role Level: ${roleLevel}\n`;
-
-        console.log("🔹 Generated Prompt:\n", prompt);
-
-        // Initialize Gemini Model
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5" });
-
-        const result = await model.generateContent(prompt);
-        console.log("✅ Gemini API Response Received.");
-
-        // Validate API response format
-        if (!result || !result.response || !result.response.candidates || !result.response.candidates[0].content.parts[0].text) {
-            console.error("❌ Invalid response from Gemini API.");
-            throw new Error("Gemini API returned an invalid response.");
-        }
-
-        // Extract generated questions
-        const questions = result.response.candidates[0].content.parts[0].text
-            .split("\n")
-            .filter(q => q.trim() !== "");
-
-        console.log("✅ Generated Questions:", questions);
-
-        // Send response
-        res.json({ success: true, questions });
-
-    } catch (error) {
-        console.error("❌ Gemini AI Error:", error.message);
-        res.status(500).json({ success: false, error: "Failed to generate interview questions." });
+    let resumeText = "";
+    if (resumeFile && resumeFile.buffer) {
+      const pdfData = await pdfParse(resumeFile.buffer);
+      resumeText = pdfData.text;
     }
+
+    const prompt = `
+You are an AI Interview Coach. Based on the following resume and job description, generate 8-10 interview question-answer pairs. Include both technical and behavioral questions. Format response as:
+
+Q: <Question>
+A: <Model Answer>
+
+Resume:
+${resumeText || "N/A"}
+
+Job Description:
+${jobDescription || "N/A"}
+`;
+
+    const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-pro-latest" });
+    const result = await model.generateContent(prompt);
+    const response = result.response.text();
+
+    // Parse QA pairs
+    const qaPairs = [];
+    const lines = response.split("\n");
+
+    let currentQuestion = "";
+    let currentAnswer = "";
+
+    lines.forEach((line) => {
+      line = line.trim();
+
+      if (/^Q[:：]/i.test(line)) {
+        if (currentQuestion && currentAnswer) {
+          qaPairs.push({ question: currentQuestion, answer: currentAnswer });
+          currentAnswer = "";
+        }
+        currentQuestion = line.replace(/^Q[:：]\s*/i, "");
+      } else if (/^A[:：]/i.test(line)) {
+        currentAnswer = line.replace(/^A[:：]\s*/i, "");
+      } else if (currentAnswer !== "") {
+        currentAnswer += " " + line; // multi-line answers
+      }
+    });
+
+    // Push last one
+    if (currentQuestion && currentAnswer) {
+      qaPairs.push({ question: currentQuestion, answer: currentAnswer });
+    }
+
+    return res.status(200).json({ qaPairs });
+  } catch (error) {
+    console.error("❌ Gemini Analysis Error:", error);
+    return res.status(500).json({ error: "Error generating questions and answers" });
+  }
 };
 
-// ✅ Helper functions to extract key sections from the resume text
-function extractCareerObjective(resumeText) {
-    const match = resumeText.match(/Career Objective:(.*?)(\n|$)/s);
-    return match ? match[1].trim() : "Not provided.";
-}
+// -------------------- ANALYZE RESUME (Manual Only - Optional) --------------------
+export const analyzeResume = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
-function extractProjects(resumeText) {
-    const match = resumeText.match(/Projects:(.*?)(\n|$)/s);
-    return match ? match[1].trim() : "Not mentioned.";
-}
+    const resume = req.file;
+    const parsedResume = await pdfParse(resume.buffer);
+    console.log(parsedResume.text);
 
-function extractSkills(resumeText) {
-    const match = resumeText.match(/Skills:(.*?)(\n|$)/s);
-    return match ? match[1].trim() : "Not mentioned.";
-}
+    const questions = await generateInterviewQuestions(req.body.jobDescription);
 
-function extractEducation(resumeText) {
-    const match = resumeText.match(/Educational Qualifications:(.*?)(\n|$)/s);
-    return match ? match[1].trim() : "Not provided.";
-}
+    return res.json({ questions });
+  } catch (error) {
+    console.error("❌ Error during resume analysis:", error);
+    res.status(500).json({ error: "Something went wrong during resume analysis" });
+  }
+};
 
-function extractInternship(resumeText) {
-    const match = resumeText.match(/Internship:(.*?)(\n|$)/s);
-    return match ? match[1].trim() : "Not mentioned.";
-}
+// -------------------- SUBMIT USER ANSWERS ----------------------
+export const submitQA = async (req, res) => {
+  const { email, qaPairs } = req.body;
 
-// ✅ Export function
-module.exports = { analyzeResume };
+  if (!email || !qaPairs) {
+    return res.status(400).json({ error: "Email and questions with answers are required" });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    await InterviewQA.create({
+      userEmail: email,
+      qaPairs,
+    });
+
+    return res.status(200).json({ success: true, message: "Answers submitted successfully." });
+  } catch (err) {
+    console.error("❌ Error saving interview:", err);
+    res.status(500).json({ error: "Failed to save interview" });
+  }
+};

@@ -1,13 +1,12 @@
-const express = require("express");
-const multer = require("multer");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-require("dotenv").config();
+import express from "express";
+import multer from "multer";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import dotenv from "dotenv";
+dotenv.config();
 
 const router = express.Router();
 
-
-
-// ✅ Configure Multer for file uploads (storing in memory)
+ // ✅ Configure Multer for file uploads (storing in memory)
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -29,14 +28,11 @@ router.post("/analyze", upload.single("resume"), async (req, res) => {
       return res.status(400).json({ error: "Please provide a job description or upload a resume." });
     }
 
-    console.log("🔹 Job Description:\n", jobDescription);
+    console.log('Job Description:', jobDescription);
+console.log('Request file buffer:', req.file?.buffer);
+console.log('Prompt sent to Gemini AI:', prompt);
 
-    router.post("/analyze", upload.single("resume"), (req, res, next) => {
-      console.log("✅ Multer triggered");
-      next();
-    });
-    
-    // ✅ Create a prompt for Gemini AI
+     // ✅ Create a prompt for Gemini AI
     const prompt = `Based on the following job description and resume (if provided), generate 5 mock interview questions:\n\n${jobDescription}`;
     console.log("🔹 Prompt sent to Gemini:\n", prompt);
 
@@ -75,4 +71,4 @@ router.post("/analyze", upload.single("resume"), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router; // Export the router as a default export

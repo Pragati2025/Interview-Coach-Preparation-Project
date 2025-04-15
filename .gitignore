@@ -1,14 +1,16 @@
-# Ignore Node.js dependencies
-client/node_modules
-server/node_modules
+# Server-specific ignore
 
-# Ignore build folders
-client/build
-server/dist
+# Node modules
+node_modules/
 
-# Environment variables
-client/.env
-server/.env
+# Dist or build folder
+dist/
+
+# Env file
+.env
+
+# Logs
+*.log
 
 # OS files
 .DS_Store
